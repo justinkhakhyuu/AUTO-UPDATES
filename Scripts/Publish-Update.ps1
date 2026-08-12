@@ -21,7 +21,8 @@ function Write-Step([string]$Text, [string]$Color = 'Cyan') {
 }
 
 function Test-VersionString([string]$Value) {
-    return [System.Version]::TryParse($Value.Trim(), [ref][System.Version]$null)
+    $parsed = $null
+    return [System.Version]::TryParse($Value.Trim(), [ref]$parsed)
 }
 
 function Get-ManifestVersion([string]$ManifestPath, [string]$ChannelName) {
@@ -65,6 +66,127 @@ function Test-VersionAllowed([string]$Current, [string]$New) {
     return [pscustomobject]@{ Ok = $true }
 }
 
+function Show-ProgressLine([string]$Label, [int]$Percent) {
+    $pct = [Math]::Max(0, [Math]::Min(100, $Percent))
+    $filled = [int]([Math]::Round($pct / 5))
+    $bar = ('#' * $filled) + ('-' * (20 - $filled))
+    Write-Host ("`r  [{0}] {1,3}%  {2}   " -f $bar, $pct, $Label) -NoNewline
+}
+
+function Copy-FileWithProgress([string]$Source, [string]$Destination, [string]$Label) {
+    $src = Get-Item -LiteralPath $Source
+    $destDir = Split-Path $Destination -Parent
+    if (-not (Test-Path $destDir)) {
+        New-Item -ItemType Directory -Path $destDir -Force | Out-Null
+    }
+
+    $buffer = New-Object byte[] (1024 * 1024)
+    $total = [long]$src.Length
+    $copied = [long]0
+    $lastPct = -1
+
+    $inStream = [System.IO.File]::OpenRead($src.FullName)
+    $outStream = [System.IO.File]::Create($Destination)
+    try {
+        while ($true) {
+            $read = $inStream.Read($buffer, 0, $buffer.Length)
+            if ($read -le 0) { break }
+            $outStream.Write($buffer, 0, $read)
+            $copied += $read
+
+            $pct = if ($total -gt 0) { [int](($copied * 100L) / $total) } else { 100 }
+            if ($pct -ne $lastPct) {
+                $lastPct = $pct
+                Show-ProgressLine $Label $pct
+            }
+        }
+    }
+    finally {
+        $outStream.Dispose()
+        $inStream.Dispose()
+    }
+
+    Show-ProgressLine $Label 100
+    Write-Host ""
+}
+
+function Invoke-GitQuiet {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string[]]$Arguments
+    )
+
+    $psi = New-Object System.Diagnostics.ProcessStartInfo
+    $psi.FileName = 'git'
+    $psi.Arguments = ($Arguments | ForEach-Object {
+        if ($_ -match '\s') { '"' + $_ + '"' } else { $_ }
+    }) -join ' '
+    $psi.RedirectStandardOutput = $true
+    $psi.RedirectStandardError = $true
+    $psi.UseShellExecute = $false
+    $psi.CreateNoWindow = $true
+    $psi.WorkingDirectory = (Get-Location).Path
+
+    $proc = [System.Diagnostics.Process]::Start($psi)
+    $stdout = $proc.StandardOutput.ReadToEnd()
+    $stderr = $proc.StandardError.ReadToEnd()
+    $proc.WaitForExit()
+
+    return [pscustomobject]@{
+        ExitCode = $proc.ExitCode
+        StdOut = $stdout
+        StdErr = $stderr
+    }
+}
+
+function Invoke-GitPushWithProgress {
+    $oldEap = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        Show-ProgressLine 'Uploading to GitHub' 1
+        $exitCode = 0
+
+        & git push --progress origin main 2>&1 | ForEach-Object {
+            $line = if ($_ -is [System.Management.Automation.ErrorRecord]) {
+                $_.ToString()
+            } else {
+                "$_"
+            }
+
+            if ($line -match 'Writing objects:\s+(\d+)%') {
+                Show-ProgressLine 'Uploading to GitHub' ([int]$Matches[1])
+            }
+            elseif ($line -match 'Counting objects:\s+(\d+)%') {
+                Show-ProgressLine 'Preparing upload' ([int]$Matches[1])
+            }
+            elseif ($line -match 'Compressing objects:\s+(\d+)%') {
+                Show-ProgressLine 'Compressing' ([int]$Matches[1])
+            }
+            elseif ($line -match 'Receiving objects:\s+(\d+)%') {
+                Show-ProgressLine 'Syncing remote' ([int]$Matches[1])
+            }
+            elseif ($line -match 'rejected|error:|fatal:') {
+                Write-Host ""
+                Write-Host "  $line" -ForegroundColor Red
+            }
+        }
+
+        $exitCode = $LASTEXITCODE
+        if ($exitCode -eq 0) {
+            Show-ProgressLine 'Uploading to GitHub' 100
+            Write-Host ""
+        }
+        else {
+            Write-Host ""
+        }
+
+        return $exitCode
+    }
+    finally {
+        $ErrorActionPreference = $oldEap
+    }
+}
+
 $repo = Split-Path $PSScriptRoot -Parent
 $manifestPath = Join-Path $repo 'updates\manifest.json'
 
@@ -92,7 +214,6 @@ if (-not (Test-Path $ClientDll)) {
     Write-Error "Client.dll not found: $ClientDll`nBuild the project first (Compile.bat)."
 }
 
-# Real Client.dll is ~40MB+. Reject placeholder / text fakes.
 $MinClientBytes = 5MB
 $clientInfo = Get-Item $ClientDll
 if ($clientInfo.Length -lt $MinClientBytes) {
@@ -137,24 +258,15 @@ Write-Host ""
 if ($Channel -eq 'brutal') {
     $clientDest = Join-Path $repo 'payloads\brutal\Client.dll'
     $nativeDest = Join-Path $repo 'payloads\brutal\Libraries\libTERMINALX999Cheats.so'
-    $nativeDir = Split-Path $nativeDest -Parent
-    if (-not (Test-Path $nativeDir)) {
-        New-Item -ItemType Directory -Path $nativeDir -Force | Out-Null
-    }
 
-    Copy-Item $ClientDll $clientDest -Force
-    Copy-Item $NativeLib $nativeDest -Force
+    Copy-FileWithProgress -Source $ClientDll -Destination $clientDest -Label 'Copying Client.dll'
+    Copy-FileWithProgress -Source $NativeLib -Destination $nativeDest -Label 'Copying libTERMINALX999Cheats.so'
     Write-Host ("  [OK] Client.dll ({0:N1} MB)" -f ((Get-Item $clientDest).Length / 1MB))
     Write-Host ("  [OK] libTERMINALX999Cheats.so ({0:N1} MB)" -f ((Get-Item $nativeDest).Length / 1MB))
 }
 else {
     $clientDest = Join-Path $repo 'payloads\lite\Client.dll'
-    $liteDir = Split-Path $clientDest -Parent
-    if (-not (Test-Path $liteDir)) {
-        New-Item -ItemType Directory -Path $liteDir -Force | Out-Null
-    }
-
-    Copy-Item $ClientDll $clientDest -Force
+    Copy-FileWithProgress -Source $ClientDll -Destination $clientDest -Label 'Copying Client.dll'
     Write-Host ("  [OK] Client.dll ({0:N1} MB)" -f ((Get-Item $clientDest).Length / 1MB))
 }
 
@@ -171,18 +283,40 @@ if ($SkipPush) {
 
 Push-Location $repo
 try {
-    git add payloads updates/manifest.json
-    $commitMsg = "Publish $Channel $Version"
-    git -c user.name="justinkhakhyuu" -c user.email="justinkhakhyuu@users.noreply.github.com" `
-        commit -m $commitMsg 2>&1 | ForEach-Object { Write-Host "  $_" }
-
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "  Nothing new to commit, or commit failed." -ForegroundColor Yellow
+    $add = Invoke-GitQuiet -Arguments @('add', 'payloads', 'updates/manifest.json')
+    if ($add.ExitCode -ne 0) {
+        Write-Host "  git add failed:" -ForegroundColor Red
+        Write-Host $add.StdErr
+        exit 1
     }
 
-    git push origin main 2>&1 | ForEach-Object { Write-Host "  $_" }
-    if ($LASTEXITCODE -ne 0) {
-        Write-Error "Git push failed."
+    $commitMsg = "Publish $Channel $Version"
+    $commit = Invoke-GitQuiet -Arguments @(
+        '-c', 'user.name=justinkhakhyuu',
+        '-c', 'user.email=justinkhakhyuu@users.noreply.github.com',
+        'commit', '-m', $commitMsg
+    )
+
+    if ($commit.ExitCode -eq 0) {
+        Write-Host "  [OK] commit: $commitMsg"
+    }
+    else {
+        $combined = ($commit.StdOut + $commit.StdErr)
+        if ($combined -match 'nothing to commit') {
+            Write-Host "  [OK] nothing new to commit (files already current)"
+        }
+        else {
+            Write-Host "  Commit warning:" -ForegroundColor Yellow
+            if ($commit.StdOut) { Write-Host $commit.StdOut }
+            if ($commit.StdErr) { Write-Host $commit.StdErr }
+        }
+    }
+
+    Write-Host ""
+    $pushCode = Invoke-GitPushWithProgress
+    if ($pushCode -ne 0) {
+        Write-Host "  Git push failed (exit $pushCode)." -ForegroundColor Red
+        exit 1
     }
 
     Write-Host ""
