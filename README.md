@@ -13,6 +13,13 @@
 
 ## To publish a new version
 
+**From your internal project (easiest):**
+- LITE: run `SendUpdate.bat` in the lite project root
+- BRUTAL: run `SendUpdate.bat` in the brutal project root
+
+It asks for the version, checks it is higher than the current one, copies files, and pushes to GitHub.
+
+**Or manually:**
 1. Replace files in `payloads/brutal/` or `payloads/lite/`
 2. Bump version in `updates/manifest.json`
 3. `git add -A && git commit -m "brutal 1.0.3" && git push`
