@@ -58,7 +58,7 @@ function Test-VersionAllowed([string]$Current, [string]$New) {
     if ($newVersion -lt $currentVersion) {
         return [pscustomobject]@{
             Ok = $false
-            Message = "Version $New is lower than current $Current. Please upgrade — use a version above $Current."
+            Message = "Version $New is lower than current $Current. Please upgrade - use a version above $Current."
         }
     }
 
@@ -103,7 +103,7 @@ if ($Channel -eq 'brutal') {
 }
 
 Write-Host ""
-Write-Step "  Black Corps — publish $Channel update"
+Write-Step "  Black Corps - publish $Channel update"
 Write-Host ""
 Write-Host "  Current : $(if ($currentVersion) { $currentVersion } else { '(none)' })"
 Write-Host "  New     : $Version"
