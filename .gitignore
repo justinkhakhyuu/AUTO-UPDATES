@@ -1,7 +1,2 @@
-# Drop real binaries here locally — do not commit DLL/SO to git
-release-assets/**/*.dll
-release-assets/**/*.so
-
-# Keep folder guides
-!release-assets/**/DROP_FILES_HERE.txt
-!release-assets/**/.gitkeep
+# Drop real binaries here locally — never commit DLL/SO to git
+release-assets/
