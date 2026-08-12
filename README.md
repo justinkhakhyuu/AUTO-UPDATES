@@ -1,2 +1,1 @@
-# AUTO-UPDATES
-auto update the exe silently
+AUT OUPDATE SYSTEM
