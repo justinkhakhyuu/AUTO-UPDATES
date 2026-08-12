@@ -1,0 +1,31 @@
+{
+  "channels": {
+    "brutal": {
+      "version": "1.0.0",
+      "tag": "brutal-1.0.0",
+      "files": {
+        "Client.dll": {
+          "url": "https://github.com/justinkhakhyuu/AUTO-UPDATES/releases/download/brutal-1.0.0/Client.dll",
+          "sha256": "REPLACE_AFTER_UPLOAD",
+          "size": 0
+        },
+        "Libraries/libTERMINALX999Cheats.so": {
+          "url": "https://github.com/justinkhakhyuu/AUTO-UPDATES/releases/download/brutal-1.0.0/libTERMINALX999Cheats.so",
+          "sha256": "REPLACE_AFTER_UPLOAD",
+          "size": 0
+        }
+      }
+    },
+    "lite": {
+      "version": "1.0.0",
+      "tag": "lite-1.0.0",
+      "files": {
+        "Client.dll": {
+          "url": "https://github.com/justinkhakhyuu/AUTO-UPDATES/releases/download/lite-1.0.0/Client.dll",
+          "sha256": "REPLACE_AFTER_UPLOAD",
+          "size": 0
+        }
+      }
+    }
+  }
+}
