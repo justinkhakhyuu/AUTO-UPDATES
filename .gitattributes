@@ -1,0 +1,5 @@
+# Treat payload binaries as binary (never line-ending convert)
+payloads/**/*.dll binary
+payloads/**/*.so binary
+*.dll binary
+*.so binary

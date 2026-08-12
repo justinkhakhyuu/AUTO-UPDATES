@@ -92,6 +92,18 @@ if (-not (Test-Path $ClientDll)) {
     Write-Error "Client.dll not found: $ClientDll`nBuild the project first (Compile.bat)."
 }
 
+# Real Client.dll is ~40MB+. Reject placeholder / text fakes.
+$MinClientBytes = 5MB
+$clientInfo = Get-Item $ClientDll
+if ($clientInfo.Length -lt $MinClientBytes) {
+    Write-Host ""
+    Write-Host "  Client.dll is too small ($([math]::Round($clientInfo.Length / 1KB, 1)) KB)." -ForegroundColor Red
+    Write-Host "  Expected a real build (~40+ MB). Run Compile.bat first." -ForegroundColor Yellow
+    Write-Host "  Path: $ClientDll" -ForegroundColor DarkGray
+    Write-Host ""
+    exit 1
+}
+
 if ($Channel -eq 'brutal') {
     if ([string]::IsNullOrWhiteSpace($NativeLib)) {
         Write-Error "Brutal update needs -NativeLib path to libTERMINALX999Cheats.so"
@@ -100,6 +112,15 @@ if ($Channel -eq 'brutal') {
     if (-not (Test-Path $NativeLib)) {
         Write-Error "Native lib not found: $NativeLib`nBuild/sync native libs first."
     }
+
+    $nativeInfo = Get-Item $NativeLib
+    if ($nativeInfo.Length -lt 50KB) {
+        Write-Host ""
+        Write-Host "  libTERMINALX999Cheats.so is too small ($([math]::Round($nativeInfo.Length / 1KB, 1)) KB)." -ForegroundColor Red
+        Write-Host "  Build/sync the real native lib first." -ForegroundColor Yellow
+        Write-Host ""
+        exit 1
+    }
 }
 
 Write-Host ""
@@ -107,6 +128,10 @@ Write-Step "  Black Corps - publish $Channel update"
 Write-Host ""
 Write-Host "  Current : $(if ($currentVersion) { $currentVersion } else { '(none)' })"
 Write-Host "  New     : $Version"
+Write-Host ("  Client  : {0:N1} MB" -f ($clientInfo.Length / 1MB))
+if ($Channel -eq 'brutal') {
+    Write-Host ("  Native  : {0:N1} MB" -f ((Get-Item $NativeLib).Length / 1MB))
+}
 Write-Host ""
 
 if ($Channel -eq 'brutal') {
@@ -119,8 +144,8 @@ if ($Channel -eq 'brutal') {
 
     Copy-Item $ClientDll $clientDest -Force
     Copy-Item $NativeLib $nativeDest -Force
-    Write-Host "  [OK] Client.dll"
-    Write-Host "  [OK] libTERMINALX999Cheats.so"
+    Write-Host ("  [OK] Client.dll ({0:N1} MB)" -f ((Get-Item $clientDest).Length / 1MB))
+    Write-Host ("  [OK] libTERMINALX999Cheats.so ({0:N1} MB)" -f ((Get-Item $nativeDest).Length / 1MB))
 }
 else {
     $clientDest = Join-Path $repo 'payloads\lite\Client.dll'
@@ -130,7 +155,7 @@ else {
     }
 
     Copy-Item $ClientDll $clientDest -Force
-    Write-Host "  [OK] Client.dll"
+    Write-Host ("  [OK] Client.dll ({0:N1} MB)" -f ((Get-Item $clientDest).Length / 1MB))
 }
 
 $manifest = Get-Content $manifestPath -Raw | ConvertFrom-Json
