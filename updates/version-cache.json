@@ -1,5 +1,6 @@
 ﻿{
     "brutal":  "1.0.64",
     "lite":  "1.0.9",
-    "external":  "1.0.2"
+    "external":  "1.0.2",
+    "loader":  "1.0.1"
 }
