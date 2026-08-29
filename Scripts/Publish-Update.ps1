@@ -1,15 +1,27 @@
 param(
     [Parameter(Mandatory = $true)]
-    [ValidateSet('brutal', 'lite')]
+    [ValidateSet('brutal', 'lite', 'external')]
     [string]$Channel,
 
-    [Parameter(Mandatory = $true)]
     [string]$Version,
 
-    [Parameter(Mandatory = $true)]
     [string]$ClientDll,
 
     [string]$NativeLib,
+
+    [string]$NativeInjectorLib,
+
+    [string]$ExternalExe,
+
+    [string]$WinDivertDll,
+
+    [string]$WinDivertSys,
+
+    [switch]$AutoIncrement,
+
+    [switch]$Confirm,
+
+    [switch]$PreviewOnly,
 
     [switch]$SkipPush
 )
@@ -32,6 +44,78 @@ function Get-ManifestVersion([string]$ManifestPath, [string]$ChannelName) {
 
     $data = Get-Content $ManifestPath -Raw | ConvertFrom-Json
     return [string]$data.$ChannelName
+}
+
+function Get-VersionCachePath([string]$RepoRoot) {
+    return Join-Path $RepoRoot 'updates\version-cache.json'
+}
+
+function Get-VersionCache([string]$CachePath, [string]$ChannelName) {
+    if (-not (Test-Path $CachePath)) {
+        return $null
+    }
+
+    $data = Get-Content $CachePath -Raw | ConvertFrom-Json
+    return [string]$data.$ChannelName
+}
+
+function Set-JsonChannelProperty([object]$Object, [string]$Name, [string]$Value) {
+    if ($Object.PSObject.Properties.Name -contains $Name) {
+        $Object.$Name = $Value
+    }
+    else {
+        $Object | Add-Member -NotePropertyName $Name -NotePropertyValue $Value
+    }
+}
+
+function Set-VersionCache([string]$CachePath, [string]$ChannelName, [string]$Value) {
+    $data = $null
+    if (Test-Path $CachePath) {
+        $data = Get-Content $CachePath -Raw | ConvertFrom-Json
+    }
+    else {
+        $data = New-Object PSObject
+    }
+
+    Set-JsonChannelProperty -Object $data -Name $ChannelName -Value $Value.Trim()
+    $data | ConvertTo-Json | Set-Content $CachePath -Encoding UTF8
+}
+
+function Get-HighestVersion([string[]]$Versions) {
+  $best = $null
+  foreach ($raw in $Versions) {
+    if ([string]::IsNullOrWhiteSpace($raw)) { continue }
+    if (-not (Test-VersionString $raw)) { continue }
+    $candidate = [Version]$raw.Trim()
+    if ($null -eq $best -or $candidate -gt $best) {
+      $best = $candidate
+    }
+  }
+  if ($null -eq $best) {
+    return $null
+  }
+  return $best.ToString()
+}
+
+function Get-NextVersionString([string]$Current) {
+  if ([string]::IsNullOrWhiteSpace($Current)) {
+    return '1.0.0'
+  }
+
+  if (-not (Test-VersionString $Current)) {
+    throw "Invalid version '$Current' in cache/manifest."
+  }
+
+  $v = [Version]$Current.Trim()
+  if ($v.Build -ge 0) {
+    return [Version]::new($v.Major, $v.Minor, $v.Build + 1).ToString()
+  }
+
+  if ($v.Minor -ge 0) {
+    return [Version]::new($v.Major, $v.Minor + 1, 0).ToString()
+  }
+
+  return [Version]::new($v.Major + 1, 0, 0).ToString()
 }
 
 function Test-VersionAllowed([string]$Current, [string]$New) {
@@ -189,9 +273,24 @@ function Invoke-GitPushWithProgress {
 
 $repo = Split-Path $PSScriptRoot -Parent
 $manifestPath = Join-Path $repo 'updates\manifest.json'
+$versionCachePath = Get-VersionCachePath $repo
 
 if (-not (Test-Path $manifestPath)) {
     Write-Error "Manifest not found: $manifestPath"
+}
+
+$manifestVersion = Get-ManifestVersion $manifestPath $Channel
+$cachedVersion = Get-VersionCache $versionCachePath $Channel
+$lastPublishedVersion = Get-HighestVersion @($manifestVersion, $cachedVersion)
+
+if ($AutoIncrement) {
+    $Version = Get-NextVersionString $lastPublishedVersion
+}
+elseif ([string]::IsNullOrWhiteSpace($Version)) {
+    Write-Host ""
+    Write-Host "  Version is required unless you use -AutoIncrement." -ForegroundColor Red
+    Write-Host ""
+    exit 1
 }
 
 if (-not (Test-VersionString $Version)) {
@@ -201,7 +300,45 @@ if (-not (Test-VersionString $Version)) {
     exit 1
 }
 
-$currentVersion = Get-ManifestVersion $manifestPath $Channel
+if ($PreviewOnly) {
+    Write-Host ""
+    Write-Host "  Channel          : $Channel"
+    Write-Host "  Last published   : $(if ($lastPublishedVersion) { $lastPublishedVersion } else { '(none)' })"
+    if ($cachedVersion -and $cachedVersion -ne $manifestVersion) {
+        Write-Host "    manifest.json  : $(if ($manifestVersion) { $manifestVersion } else { '(none)' })"
+        Write-Host "    version-cache  : $cachedVersion"
+    }
+    if ($AutoIncrement) {
+        Write-Host "  Next version     : $Version"
+    }
+    elseif (-not [string]::IsNullOrWhiteSpace($Version)) {
+        Write-Host "  Target version   : $Version"
+    }
+    Write-Host ""
+    exit 0
+}
+
+if ($Confirm) {
+    Write-Host ""
+    Write-Host "  Channel          : $Channel"
+    Write-Host "  Last published   : $(if ($lastPublishedVersion) { $lastPublishedVersion } else { '(none)' })"
+    if ($cachedVersion -and $cachedVersion -ne $manifestVersion) {
+        Write-Host "    manifest.json  : $(if ($manifestVersion) { $manifestVersion } else { '(none)' })"
+        Write-Host "    local cache    : $cachedVersion"
+    }
+    Write-Host "  Next version     : $Version"
+    Write-Host ""
+    $answer = Read-Host "  Publish $Channel $Version to GitHub? [Y/N]"
+    if ($answer -notmatch '^[Yy]') {
+        Write-Host ""
+        Write-Host "  Cancelled - no update sent." -ForegroundColor Yellow
+        Write-Host ""
+        exit 0
+    }
+    Write-Host ""
+}
+
+$currentVersion = $manifestVersion
 $check = Test-VersionAllowed $currentVersion $Version
 if (-not $check.Ok) {
     Write-Host ""
@@ -210,19 +347,48 @@ if (-not $check.Ok) {
     exit 1
 }
 
-if (-not (Test-Path $ClientDll)) {
-    Write-Error "Client.dll not found: $ClientDll`nBuild the project first (Compile.bat)."
+if ([string]::IsNullOrWhiteSpace($ClientDll) -and $Channel -ne 'external') {
+    Write-Error "ClientDll path is required (unless -PreviewOnly)."
 }
 
-$MinClientBytes = 5MB
-$clientInfo = Get-Item $ClientDll
-if ($clientInfo.Length -lt $MinClientBytes) {
-    Write-Host ""
-    Write-Host "  Client.dll is too small ($([math]::Round($clientInfo.Length / 1KB, 1)) KB)." -ForegroundColor Red
-    Write-Host "  Expected a real build (~40+ MB). Run Compile.bat first." -ForegroundColor Yellow
-    Write-Host "  Path: $ClientDll" -ForegroundColor DarkGray
-    Write-Host ""
-    exit 1
+if ($Channel -ne 'external') {
+    if (-not (Test-Path $ClientDll)) {
+        Write-Error "Client.dll not found: $ClientDll`nBuild the project first (Compile.bat)."
+    }
+
+    $MinClientBytes = 5MB
+    $clientInfo = Get-Item $ClientDll
+    if ($clientInfo.Length -lt $MinClientBytes) {
+        Write-Host ""
+        Write-Host "  Client.dll is too small ($([math]::Round($clientInfo.Length / 1KB, 1)) KB)." -ForegroundColor Red
+        Write-Host "  Expected a real build (~40+ MB). Run Compile.bat first." -ForegroundColor Yellow
+        Write-Host "  Path: $ClientDll" -ForegroundColor DarkGray
+        Write-Host ""
+        exit 1
+    }
+}
+else {
+    if ([string]::IsNullOrWhiteSpace($ExternalExe)) {
+        Write-Error "External update needs -ExternalExe path to BlackCorpsExternal.exe"
+    }
+    if ([string]::IsNullOrWhiteSpace($WinDivertDll)) {
+        Write-Error "External update needs -WinDivertDll path"
+    }
+    if ([string]::IsNullOrWhiteSpace($WinDivertSys)) {
+        Write-Error "External update needs -WinDivertSys path"
+    }
+    foreach ($path in @($ExternalExe, $WinDivertDll, $WinDivertSys)) {
+        if (-not (Test-Path $path)) {
+            Write-Error "File not found: $path`nBuild EXTERNAL X ESP Release x64 first."
+        }
+    }
+    $clientInfo = Get-Item $ExternalExe
+    if ($clientInfo.Length -lt 512KB) {
+        Write-Host ""
+        Write-Host "  BlackCorpsExternal.exe is too small." -ForegroundColor Red
+        Write-Host ""
+        exit 1
+    }
 }
 
 if ($Channel -eq 'brutal') {
@@ -242,6 +408,23 @@ if ($Channel -eq 'brutal') {
         Write-Host ""
         exit 1
     }
+
+    if ([string]::IsNullOrWhiteSpace($NativeInjectorLib)) {
+        Write-Error "Brutal update needs -NativeInjectorLib path to libinjectEmulator.so"
+    }
+
+    if (-not (Test-Path $NativeInjectorLib)) {
+        Write-Error "Injector lib not found: $NativeInjectorLib`nBuild/sync native libs first."
+    }
+
+    $injectorInfo = Get-Item $NativeInjectorLib
+    if ($injectorInfo.Length -lt 50KB) {
+        Write-Host ""
+        Write-Host "  libinjectEmulator.so is too small ($([math]::Round($injectorInfo.Length / 1KB, 1)) KB)." -ForegroundColor Red
+        Write-Host "  Build/sync the real injector lib first." -ForegroundColor Yellow
+        Write-Host ""
+        exit 1
+    }
 }
 
 Write-Host ""
@@ -251,18 +434,34 @@ Write-Host "  Current : $(if ($currentVersion) { $currentVersion } else { '(none
 Write-Host "  New     : $Version"
 Write-Host ("  Client  : {0:N1} MB" -f ($clientInfo.Length / 1MB))
 if ($Channel -eq 'brutal') {
-    Write-Host ("  Native  : {0:N1} MB" -f ((Get-Item $NativeLib).Length / 1MB))
+    Write-Host ("  Native  : {0:N1} MB (cheat)" -f ((Get-Item $NativeLib).Length / 1MB))
+    Write-Host ("  Inject  : {0:N1} MB" -f ((Get-Item $NativeInjectorLib).Length / 1MB))
 }
 Write-Host ""
 
 if ($Channel -eq 'brutal') {
     $clientDest = Join-Path $repo 'payloads\brutal\Client.dll'
     $nativeDest = Join-Path $repo 'payloads\brutal\Libraries\libTERMINALX999Cheats.so'
+    $injectorDest = Join-Path $repo 'payloads\brutal\Libraries\libinjectEmulator.so'
 
     Copy-FileWithProgress -Source $ClientDll -Destination $clientDest -Label 'Copying Client.dll'
     Copy-FileWithProgress -Source $NativeLib -Destination $nativeDest -Label 'Copying libTERMINALX999Cheats.so'
+    Copy-FileWithProgress -Source $NativeInjectorLib -Destination $injectorDest -Label 'Copying libinjectEmulator.so'
     Write-Host ("  [OK] Client.dll ({0:N1} MB)" -f ((Get-Item $clientDest).Length / 1MB))
     Write-Host ("  [OK] libTERMINALX999Cheats.so ({0:N1} MB)" -f ((Get-Item $nativeDest).Length / 1MB))
+    Write-Host ("  [OK] libinjectEmulator.so ({0:N1} MB)" -f ((Get-Item $injectorDest).Length / 1MB))
+}
+elseif ($Channel -eq 'external') {
+    $exeDest = Join-Path $repo 'payloads\external\BlackCorpsExternal.exe'
+    $dllDest = Join-Path $repo 'payloads\external\WinDivert.dll'
+    $sysDest = Join-Path $repo 'payloads\external\WinDivert64.sys'
+
+    Copy-FileWithProgress -Source $ExternalExe -Destination $exeDest -Label 'Copying BlackCorpsExternal.exe'
+    Copy-FileWithProgress -Source $WinDivertDll -Destination $dllDest -Label 'Copying WinDivert.dll'
+    Copy-FileWithProgress -Source $WinDivertSys -Destination $sysDest -Label 'Copying WinDivert64.sys'
+    Write-Host ("  [OK] BlackCorpsExternal.exe ({0:N1} MB)" -f ((Get-Item $exeDest).Length / 1MB))
+    Write-Host ("  [OK] WinDivert.dll ({0:N1} MB)" -f ((Get-Item $dllDest).Length / 1MB))
+    Write-Host ("  [OK] WinDivert64.sys ({0:N1} MB)" -f ((Get-Item $sysDest).Length / 1MB))
 }
 else {
     $clientDest = Join-Path $repo 'payloads\lite\Client.dll'
@@ -271,9 +470,11 @@ else {
 }
 
 $manifest = Get-Content $manifestPath -Raw | ConvertFrom-Json
-$manifest.$Channel = $Version.Trim()
+Set-JsonChannelProperty -Object $manifest -Name $Channel -Value $Version.Trim()
 $manifest | ConvertTo-Json | Set-Content $manifestPath -Encoding UTF8
+Set-VersionCache $versionCachePath $Channel $Version
 Write-Host "  [OK] manifest.json -> $Version"
+Write-Host "  [OK] version-cache.json -> $Version"
 Write-Host ""
 
 if ($SkipPush) {
@@ -283,7 +484,7 @@ if ($SkipPush) {
 
 Push-Location $repo
 try {
-    $add = Invoke-GitQuiet -Arguments @('add', 'payloads', 'updates/manifest.json')
+    $add = Invoke-GitQuiet -Arguments @('add', 'payloads', 'updates/manifest.json', 'updates/version-cache.json')
     if ($add.ExitCode -ne 0) {
         Write-Host "  git add failed:" -ForegroundColor Red
         Write-Host $add.StdErr
