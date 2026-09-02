@@ -101,6 +101,20 @@
                                   "changed":  [
 
                                               ]
+                              },
+                   "1.0.83":  {
+                                  "added":  [
+                                                "Nothing New."
+                                            ],
+                                  "removed":  [
+
+                                              ],
+                                  "fixed":  [
+                                                "Aimbot Rage Lite and Max"
+                                            ],
+                                  "changed":  [
+                                                  "Improved aim rage power."
+                                              ]
                               }
                }
 }
