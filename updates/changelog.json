@@ -73,6 +73,20 @@
                                   "changed":  [
                                                   "Smoothness"
                                               ]
+                              },
+                   "1.0.82":  {
+                                  "added":  [
+
+                                            ],
+                                  "removed":  [
+
+                                              ],
+                                  "fixed":  [
+                                                "No Clip"
+                                            ],
+                                  "changed":  [
+
+                                              ]
                               }
                }
 }
