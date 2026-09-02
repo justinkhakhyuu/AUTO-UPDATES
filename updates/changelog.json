@@ -57,6 +57,20 @@
                                   "changed":  [
                                                   "UPDATE SYSTEM"
                                               ]
+                              },
+                   "1.0.26":  {
+                                  "added":  [
+
+                                            ],
+                                  "removed":  [
+
+                                              ],
+                                  "fixed":  [
+
+                                            ],
+                                  "changed":  [
+                                                  "Ui"
+                                              ]
                               }
                },
     "brutal":  {
