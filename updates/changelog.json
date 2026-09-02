@@ -1,0 +1,18 @@
+﻿{
+    "external":  {
+                     "1.0.11":  {
+                                    "added":  [
+                                                  "Test"
+                                              ],
+                                    "removed":  [
+                                                    "nothing"
+                                                ],
+                                    "fixed":  [
+                                                  "test"
+                                              ],
+                                    "changed":  [
+                                                    "testtt"
+                                                ]
+                                }
+                 }
+}
