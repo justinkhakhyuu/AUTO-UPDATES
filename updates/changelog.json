@@ -58,5 +58,21 @@
                                                   "UPDATE SYSTEM"
                                               ]
                               }
+               },
+    "brutal":  {
+                   "1.0.81":  {
+                                  "added":  [
+                                                "New Login System Sound"
+                                            ],
+                                  "removed":  [
+                                                  "Risk Functions in Hooks"
+                                              ],
+                                  "fixed":  [
+
+                                            ],
+                                  "changed":  [
+                                                  "Smoothness"
+                                              ]
+                              }
                }
 }
