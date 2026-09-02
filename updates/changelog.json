@@ -13,6 +13,20 @@
                                     "changed":  [
                                                     "UI"
                                                 ]
+                                },
+                     "1.0.13":  {
+                                    "added":  [
+
+                                              ],
+                                    "removed":  [
+
+                                                ],
+                                    "fixed":  [
+                                                  "FIXED LAG"
+                                              ],
+                                    "changed":  [
+                                                    "SMOOTHNESS OF UI"
+                                                ]
                                 }
                  }
 }
