@@ -28,5 +28,21 @@
                                                     "SMOOTHNESS OF UI"
                                                 ]
                                 }
-                 }
+                 },
+    "loader":  {
+                   "1.0.25":  {
+                                  "added":  [
+
+                                            ],
+                                  "removed":  [
+
+                                              ],
+                                  "fixed":  [
+
+                                            ],
+                                  "changed":  [
+                                                  "UPDATE SYSTEM"
+                                              ]
+                              }
+               }
 }
