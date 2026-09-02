@@ -1,17 +1,17 @@
 ﻿{
     "external":  {
-                     "1.0.11":  {
+                     "1.0.12":  {
                                     "added":  [
-                                                  "Test"
+                                                  "Testing, UI , ETC"
                                               ],
                                     "removed":  [
-                                                    "nothing"
+                                                    "NOTHING WAS REMVOED"
                                                 ],
                                     "fixed":  [
-                                                  "test"
+                                                  "ESP BUTTON"
                                               ],
                                     "changed":  [
-                                                    "testtt"
+                                                    "UI"
                                                 ]
                                 }
                  }
