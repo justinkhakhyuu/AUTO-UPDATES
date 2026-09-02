@@ -27,6 +27,20 @@
                                     "changed":  [
                                                     "SMOOTHNESS OF UI"
                                                 ]
+                                },
+                     "1.0.14":  {
+                                    "added":  [
+                                                  "Nothing New"
+                                              ],
+                                    "removed":  [
+
+                                                ],
+                                    "fixed":  [
+                                                  "Ui Lag + Esp Issue"
+                                              ],
+                                    "changed":  [
+                                                    "Esp Connection"
+                                                ]
                                 }
                  },
     "loader":  {
