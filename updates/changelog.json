@@ -116,5 +116,21 @@
                                                   "Improved aim rage power."
                                               ]
                               }
-               }
+               },
+    "lite":  {
+                 "1.0.36":  {
+                                "added":  [
+                                              "New Login Sound"
+                                          ],
+                                "removed":  [
+
+                                            ],
+                                "fixed":  [
+
+                                          ],
+                                "changed":  [
+
+                                            ]
+                            }
+             }
 }
