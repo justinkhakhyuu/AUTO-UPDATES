@@ -115,6 +115,20 @@
                                   "changed":  [
                                                   "Improved aim rage power."
                                               ]
+                              },
+                   "1.0.84":  {
+                                  "added":  [
+                                                "esp Grenade, esp knocked timer"
+                                            ],
+                                  "removed":  [
+
+                                              ],
+                                  "fixed":  [
+                                                "Aim Rage"
+                                            ],
+                                  "changed":  [
+                                                  "Menu Theme, Cleaner Esp."
+                                              ]
                               }
                },
     "lite":  {
