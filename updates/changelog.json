@@ -129,6 +129,20 @@
                                   "changed":  [
                                                   "Menu Theme, Cleaner Esp."
                                               ]
+                              },
+                   "1.0.85":  {
+                                  "added":  [
+
+                                            ],
+                                  "removed":  [
+                                                  "Aimkill Send v1 and 2"
+                                              ],
+                                  "fixed":  [
+
+                                            ],
+                                  "changed":  [
+
+                                              ]
                               }
                },
     "lite":  {
