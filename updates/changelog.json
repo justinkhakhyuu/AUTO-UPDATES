@@ -173,6 +173,20 @@
                                 "changed":  [
 
                                             ]
+                            },
+                 "1.0.37":  {
+                                "added":  [
+                                              "New Free Fire MaX Support"
+                                          ],
+                                "removed":  [
+
+                                            ],
+                                "fixed":  [
+                                              "Ban"
+                                          ],
+                                "changed":  [
+
+                                            ]
                             }
              }
 }
