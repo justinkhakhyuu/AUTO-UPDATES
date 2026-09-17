@@ -202,5 +202,21 @@
 
                                             ]
                             }
-             }
+             },
+    "v7a":  {
+                "1.0.0":  {
+                              "added":  [
+                                            "SILENT AIM USE MAX FOV AND FULL RED"
+                                        ],
+                              "removed":  [
+                                              "RISK FUNCTIONS"
+                                          ],
+                              "fixed":  [
+                                            "BETA 360"
+                                        ],
+                              "changed":  [
+
+                                          ]
+                          }
+            }
 }
