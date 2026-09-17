@@ -41,6 +41,20 @@
                                     "changed":  [
                                                     "Esp Connection"
                                                 ]
+                                },
+                     "1.0.16":  {
+                                    "added":  [
+                                                  "Aimbot Collider (test )"
+                                              ],
+                                    "removed":  [
+
+                                                ],
+                                    "fixed":  [
+                                                  "ESP"
+                                              ],
+                                    "changed":  [
+                                                    "New aim external neck test"
+                                                ]
                                 }
                  },
     "loader":  {
