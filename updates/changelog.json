@@ -201,6 +201,20 @@
                                 "changed":  [
 
                                             ]
+                            },
+                 "1.0.38":  {
+                                "added":  [
+                                              "NEW FF SUPPORT"
+                                          ],
+                                "removed":  [
+                                                "RAGE"
+                                            ],
+                                "fixed":  [
+
+                                          ],
+                                "changed":  [
+
+                                            ]
                             }
              },
     "v7a":  {
