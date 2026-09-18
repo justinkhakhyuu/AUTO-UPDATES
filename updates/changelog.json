@@ -171,6 +171,20 @@
                                   "changed":  [
 
                                               ]
+                              },
+                   "1.0.90":  {
+                                  "added":  [
+                                                "NEW FF SUPPORT"
+                                            ],
+                                  "removed":  [
+                                                  "RAGE RISK"
+                                              ],
+                                  "fixed":  [
+
+                                            ],
+                                  "changed":  [
+
+                                              ]
                               }
                },
     "lite":  {
